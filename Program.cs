@@ -26,13 +26,18 @@ namespace HNTitles
             }
             var itemsFromWeb = await Task.WhenAll(webTasks);
 
+            var changeResults = new List<ChangeResult>();
             using (var db = new ItemContext())
             {
                 foreach (var item in itemsFromWeb) {
-                    await LoadAndUpdate(item, db);
+                    changeResults.Add(await UpdateItemIfChanged(item, db));
                 }
-                
             }
+
+            var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
+            Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
+            Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.ItemEntry.ItemId))}");
+            Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.ItemEntry.ItemId))}");
         }
 
         private static async Task<Item> LoadItemFromWeb(int itemId, HttpClient client) {
@@ -43,19 +48,20 @@ namespace HNTitles
             return item;
         }
 
-        private static async Task LoadAndUpdate(Item item, ItemContext db) {
+        private static async Task<ChangeResult> UpdateItemIfChanged(Item item, ItemContext db) {
             Console.Write($"Processing {item.ItemId}... ");
             
 
             ItemEntry previousEntry = null;
 
-            var entriesExist = await db.ItemEntries.AnyAsync(entry => entry.ItemId == item.ItemId);
-            if (entriesExist) {
-                var lastEntryForItem = await db.ItemEntries
-                    .Include(entry => entry.Item)
-                    .Where(entry => entry.ItemId == item.ItemId)
-                    .OrderBy(entry => entry.RecordedAt)
-                    .LastAsync();
+            var lastEntryForItem = await db.ItemEntries
+                .Include(entry => entry.Item)
+                .Where(entry => entry.ItemId == item.ItemId)
+                .OrderBy(entry => entry.RecordedAt)
+                .LastOrDefaultAsync();
+
+            if (lastEntryForItem != null) {
+
 
                 if (!lastEntryForItem.Item.Equals(item)) {
                     previousEntry = lastEntryForItem;
@@ -70,9 +76,13 @@ namespace HNTitles
                     };
 
                     await db.ItemEntries.AddAsync(newEntry);
+                    await db.SaveChangesAsync();
+
+                    return new ChangeResult(ChangeType.Changed, newEntry);
                 }
                 else {
                     Console.WriteLine($"No updates for item {item.ItemId}");
+                    return new ChangeResult(ChangeType.Unchanged, lastEntryForItem);
                 }
 
             }
@@ -85,8 +95,26 @@ namespace HNTitles
 
                 db.ItemEntries.Add(newEntry);
                 await db.SaveChangesAsync();
+                return new ChangeResult(ChangeType.New, newEntry);
             }
         }
+    }
+
+    class ChangeResult {
+        public ChangeType ChangeType { get; set; }
+        public ItemEntry ItemEntry { get; set; }
+
+        public ChangeResult(ChangeType changeType, ItemEntry itemEntry)
+        {
+            ChangeType = changeType;
+            ItemEntry = itemEntry;
+        }
+    }
+
+    enum ChangeType {
+        New,
+        Changed,
+        Unchanged
     }
 
     public class Item {
