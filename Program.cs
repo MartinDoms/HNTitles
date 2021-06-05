@@ -49,11 +49,10 @@ namespace HNTitles
         }
 
         private static async Task<ChangeResult> UpdateItemIfChanged(Item item, ItemContext db) {           
-            var itemsForId = db.Items
+            var lastItemForId = await db.Items
                 .Where(i => i.HnItemId == item.HnItemId)
-                .OrderBy(entry => entry.RecordedAt);
-
-            var lastItemForId = await itemsForId.LastOrDefaultAsync();
+                .OrderBy(entry => entry.RecordedAt)
+                .LastOrDefaultAsync();
 
             if (lastItemForId != null) {
                 if (!lastItemForId.Equals(item)) {
