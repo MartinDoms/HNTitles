@@ -57,7 +57,7 @@ namespace HNTitles
             if (lastItemForId != null) {
                 if (!lastItemForId.Equals(item)) {
                     var previousItem = lastItemForId;
-                    Console.WriteLine("Found a new entry!");
+                    Console.WriteLine("Found an updated entry");
                     Console.WriteLine($"{previousItem.Title} -> {item.Title}");
                     Console.WriteLine($"{previousItem.URL} -> {item.URL}");
                     
