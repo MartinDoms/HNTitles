@@ -22,6 +22,15 @@ namespace HNTitles.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("HnItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PreviousItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("RecordedAt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Title")
                         .HasColumnType("TEXT");
 
@@ -30,51 +39,18 @@ namespace HNTitles.Migrations
 
                     b.HasKey("ItemId");
 
+                    b.HasIndex("PreviousItemId");
+
                     b.ToTable("Items");
                 });
 
-            modelBuilder.Entity("HNTitles.ItemEntry", b =>
+            modelBuilder.Entity("HNTitles.Item", b =>
                 {
-                    b.Property<int>("ItemEntryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ItemId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("PreviousEntryItemEntryId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("PreviousEntryItemId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("RecordedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("ItemEntryId");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("PreviousEntryItemEntryId");
-
-                    b.ToTable("ItemEntries");
-                });
-
-            modelBuilder.Entity("HNTitles.ItemEntry", b =>
-                {
-                    b.HasOne("HNTitles.Item", "Item")
+                    b.HasOne("HNTitles.Item", "PreviousItem")
                         .WithMany()
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("PreviousItemId");
 
-                    b.HasOne("HNTitles.ItemEntry", "PreviousEntry")
-                        .WithMany()
-                        .HasForeignKey("PreviousEntryItemEntryId");
-
-                    b.Navigation("Item");
-
-                    b.Navigation("PreviousEntry");
+                    b.Navigation("PreviousItem");
                 });
 #pragma warning restore 612, 618
         }
