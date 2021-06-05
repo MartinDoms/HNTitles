@@ -36,8 +36,8 @@ namespace HNTitles
 
             var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
             Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
-            Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.ItemId))}");
-            Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.ItemId))}");
+            Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.HnItemId))}");
+            Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.HnItemId))}");
         }
 
         private static async Task<Item> LoadItemFromWeb(int itemId, HttpClient client) {
