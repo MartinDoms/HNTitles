@@ -49,10 +49,11 @@ namespace HNTitles
         }
 
         private static async Task<ChangeResult> UpdateItemIfChanged(Item item, ItemContext db) {           
-            var lastItemForId = await db.Items
+            var itemsForId = db.Items
                 .Where(i => i.HnItemId == item.HnItemId)
-                .OrderBy(entry => entry.RecordedAt)
-                .LastOrDefaultAsync();
+                .OrderBy(entry => entry.RecordedAt);
+
+            var lastItemForId = await itemsForId.LastOrDefaultAsync();
 
             if (lastItemForId != null) {
                 if (!lastItemForId.Equals(item)) {
@@ -61,7 +62,7 @@ namespace HNTitles
                     Console.WriteLine($"{previousItem.Title} -> {item.Title}");
                     Console.WriteLine($"{previousItem.URL} -> {item.URL}");
                     
-                    var newEntry = item.WithPreviousItem(previousItem);
+                    var newEntry = item.WithPreviousItem(previousItem).WithRecordedDate(DateTimeOffset.Now);
 
                     await db.Items.AddAsync(newEntry);
                     await db.SaveChangesAsync();
