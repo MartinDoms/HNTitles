@@ -15,13 +15,19 @@ namespace HNTitles
         {
             var client = new HttpClient();
 
-            var currentNews = await client.GetStreamAsync("https://hacker-news.firebaseio.com/v0/topstories.json");
-            var currentItemIds = await JsonSerializer.DeserializeAsync<List<int>>(currentNews);
-
-            Console.WriteLine($"Processing {currentItemIds.Count} news items");
+            List<int> hnTopStoryIds = new List<int>();
+            try {
+                var hnTopStories = await client.GetStreamAsync("https://hacker-news.firebaseio.com/v0/topstories.json");
+                hnTopStoryIds = await JsonSerializer.DeserializeAsync<List<int>>(hnTopStories);
+            }
+            catch (HttpRequestException requestException) {
+                Console.Error.WriteLine($"Problem fetching list of items: {requestException.StatusCode} {requestException.Message}");
+            }
+            
+            Console.WriteLine($"Processing {hnTopStoryIds.Count} news items");
 
             var webTasks = new List<Task<Item>>();
-            foreach (var itemId in currentItemIds) {
+            foreach (var itemId in hnTopStoryIds) {
                 webTasks.Add(LoadItemFromWeb(itemId, client));
             }
             var itemsFromWeb = await Task.WhenAll(webTasks);
@@ -29,7 +35,7 @@ namespace HNTitles
             var changeResults = new List<ChangeResult>();
             using (var db = new ItemContext())
             {
-                foreach (var item in itemsFromWeb) {
+                foreach (var item in itemsFromWeb.Where(webItem => webItem is not null)) {
                     changeResults.Add(await UpdateItemIfChanged(item, db));
                 }
             }
@@ -41,11 +47,16 @@ namespace HNTitles
         }
 
         private static async Task<Item> LoadItemFromWeb(int itemId, HttpClient client) {
-            var itemStream = await client.GetStreamAsync($"https://hacker-news.firebaseio.com/v0/item/{itemId}.json");
-            var item = await JsonSerializer.DeserializeAsync<Item>(itemStream);
+            try {
+                var itemStream = await client.GetStreamAsync($"https://hacker-news.firebaseio.com/v0/item/{itemId}.json");
+                var item = await JsonSerializer.DeserializeAsync<Item>(itemStream);
 
-            //Console.WriteLine($"Found item with title \"{item.Title}\"");
-            return item;
+                return item;
+            }
+            catch (HttpRequestException requestException) {
+                Console.Error.WriteLine($"Problem fetching item {itemId}: {requestException.StatusCode} {requestException.Message}");
+                return null;
+            }
         }
 
         private static async Task<ChangeResult> UpdateItemIfChanged(Item item, ItemContext db) {           
