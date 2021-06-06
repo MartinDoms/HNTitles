@@ -24,32 +24,49 @@ namespace HNTitles
                 Console.Error.WriteLine($"Problem fetching list of items: {requestException.StatusCode} {requestException.Message}");
             }
             
-            Console.WriteLine($"Processing {hnTopStoryIds.Count} news items");
+            Console.WriteLine($"Fetching {hnTopStoryIds.Count} news items");
 
             var webTasks = new List<Task<Item>>();
             foreach (var itemId in hnTopStoryIds) {
                 webTasks.Add(LoadItemFromWeb(itemId, client));
             }
             var itemsFromWeb = await Task.WhenAll(webTasks);
+            var itemsToProcess = itemsFromWeb.Where(webItem => webItem is not null);
 
+            Console.WriteLine($"\nProcessing {itemsToProcess.Count()} items");
             var changeResults = new List<ChangeResult>();
             using (var db = new ItemContext())
             {
-                foreach (var item in itemsFromWeb.Where(webItem => webItem is not null)) {
+                foreach (var item in itemsToProcess) {
                     changeResults.Add(await UpdateItemIfChanged(item, db));
+                    Console.Write(".");
+                }
+
+                Console.WriteLine();
+
+                var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
+                Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
+                Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.HnItemId))}");
+                Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.HnItemId))}");
+
+                var updated = db.Items.Where(i => i.PreviousItemId != null);
+                foreach (var updatedItem in updated) {
+                    Console.WriteLine($"{updatedItem.Title}");
+                    Item currentItem = updatedItem;
+                    while (currentItem.PreviousItemId != null) {
+                        currentItem = db.Items.Single<Item>(i => i.ItemId == currentItem.PreviousItemId);
+                        Console.WriteLine($"\twas ${currentItem.Title}");
+                    }
                 }
             }
-
-            var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
-            Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
-            Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.HnItemId))}");
-            Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.HnItemId))}");
         }
 
         private static async Task<Item> LoadItemFromWeb(int itemId, HttpClient client) {
             try {
                 var itemStream = await client.GetStreamAsync($"https://hacker-news.firebaseio.com/v0/item/{itemId}.json");
                 var item = await JsonSerializer.DeserializeAsync<Item>(itemStream);
+
+                Console.Write(".");
 
                 return item;
             }
@@ -68,7 +85,7 @@ namespace HNTitles
             if (lastItemForId != null) {
                 if (!lastItemForId.Equals(item)) {
                     var previousItem = lastItemForId;
-                    Console.WriteLine("Found an updated entry");
+                    Console.WriteLine("\nFound an updated entry");
                     Console.WriteLine($"{previousItem.Title} -> {item.Title}");
                     Console.WriteLine($"{previousItem.URL} -> {item.URL}");
                     
@@ -85,7 +102,7 @@ namespace HNTitles
 
             }
             else {
-                Console.WriteLine($"New entry, saving {item.HnItemId} : {item.Title}");
+                Console.WriteLine($"\nNew entry, saving {item.HnItemId} : {item.Title}");
 
                 var newItem = item.WithRecordedDate(DateTimeOffset.Now);
                 db.Items.Add(newItem);
