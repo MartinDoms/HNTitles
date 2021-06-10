@@ -57,11 +57,11 @@ namespace HNTitles
             using (var db = new ItemContext()) {
                 var updated = db.Items.Where(i => i.PreviousItemId != null);
                 foreach (var updatedItem in updated) {
-                    Console.WriteLine($"{updatedItem.Title}");
+                    Console.WriteLine($"\t{updatedItem.Title}");
                     Item currentItem = updatedItem;
                     while (currentItem.PreviousItemId != null) {
                         currentItem = db.Items.Single<Item>(i => i.ItemId == currentItem.PreviousItemId);
-                        Console.WriteLine($"\twas {currentItem.Title}");
+                        Console.WriteLine($"was\t{currentItem.Title}");
                     }
                 }
             }
