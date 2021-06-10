@@ -61,7 +61,7 @@ namespace HNTitles
                     Item currentItem = updatedItem;
                     while (currentItem.PreviousItemId != null) {
                         currentItem = db.Items.Single<Item>(i => i.ItemId == currentItem.PreviousItemId);
-                        Console.WriteLine($"\twas ${currentItem.Title}");
+                        Console.WriteLine($"\twas {currentItem.Title}");
                     }
                 }
             }
