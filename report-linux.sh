@@ -1,0 +1,1 @@
+./bin/Debug/netcoreapp5.0/linux-x64/publish/HNTitles -r
