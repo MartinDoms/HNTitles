@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using System.IO;
 
 namespace HNTitles
 {
@@ -196,10 +197,19 @@ namespace HNTitles
     {
         public DbSet<Item> Items { get; set; }
 
+        private string DbPath { 
+            get {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "hntitles.db"
+                );
+            }
+        }
+
         // The following configures EF to create a Sqlite database file as `C:\blogging.db`.
         // For Mac or Linux, change this to `/tmp/blogging.db` or any other absolute path.
         // TODO construct an absolute path that will work on any platform
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlite(@"Data Source=E:\hnitems.db");
+            => options.UseSqlite($"Data Source={DbPath}");
     }
 }
