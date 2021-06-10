@@ -63,6 +63,7 @@ namespace HNTitles
                         currentItem = db.Items.Single<Item>(i => i.ItemId == currentItem.PreviousItemId);
                         Console.WriteLine($"was\t{currentItem.Title}");
                     }
+                    Console.WriteLine();
                 }
             }
         }
