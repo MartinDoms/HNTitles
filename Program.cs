@@ -14,42 +14,47 @@ namespace HNTitles
     {
         static async Task Main(string[] args)
         {
-            var client = new HttpClient();
+            bool reportOnly = args.Length > 0 && (args[0] == "--report" || args[0] == "-r");
+            if (!reportOnly) {
+                var client = new HttpClient();
 
-            List<int> hnTopStoryIds = new List<int>();
-            try {
-                var hnTopStories = await client.GetStreamAsync("https://hacker-news.firebaseio.com/v0/topstories.json");
-                hnTopStoryIds = await JsonSerializer.DeserializeAsync<List<int>>(hnTopStories);
-            }
-            catch (HttpRequestException requestException) {
-                Console.Error.WriteLine($"Problem fetching list of items: {requestException.StatusCode} {requestException.Message}");
-            }
-            
-            Console.WriteLine($"Fetching {hnTopStoryIds.Count} news items");
-
-            var webTasks = new List<Task<Item>>();
-            foreach (var itemId in hnTopStoryIds) {
-                webTasks.Add(LoadItemFromWeb(itemId, client));
-            }
-            var itemsFromWeb = await Task.WhenAll(webTasks);
-            var itemsToProcess = itemsFromWeb.Where(webItem => webItem is not null);
-
-            Console.WriteLine($"\nProcessing {itemsToProcess.Count()} items");
-            var changeResults = new List<ChangeResult>();
-            using (var db = new ItemContext())
-            {
-                foreach (var item in itemsToProcess) {
-                    changeResults.Add(await UpdateItemIfChanged(item, db));
-                    Console.Write(".");
+                List<int> hnTopStoryIds = new List<int>();
+                try {
+                    var hnTopStories = await client.GetStreamAsync("https://hacker-news.firebaseio.com/v0/topstories.json");
+                    hnTopStoryIds = await JsonSerializer.DeserializeAsync<List<int>>(hnTopStories);
                 }
+                catch (HttpRequestException requestException) {
+                    Console.Error.WriteLine($"Problem fetching list of items: {requestException.StatusCode} {requestException.Message}");
+                }
+                
+                Console.WriteLine($"Fetching {hnTopStoryIds.Count} news items");
 
-                Console.WriteLine();
+                var webTasks = new List<Task<Item>>();
+                foreach (var itemId in hnTopStoryIds) {
+                    webTasks.Add(LoadItemFromWeb(itemId, client));
+                }
+                var itemsFromWeb = await Task.WhenAll(webTasks);
+                var itemsToProcess = itemsFromWeb.Where(webItem => webItem is not null);
 
-                var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
-                Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
-                Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.HnItemId))}");
-                Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.HnItemId))}");
+                Console.WriteLine($"\nProcessing {itemsToProcess.Count()} items");
+                var changeResults = new List<ChangeResult>();
+                using (var db = new ItemContext())
+                {
+                    foreach (var item in itemsToProcess) {
+                        changeResults.Add(await UpdateItemIfChanged(item, db));
+                        Console.Write(".");
+                    }
 
+                    Console.WriteLine();
+
+                    var resultsByType = changeResults.ToLookup(cr => cr.ChangeType);
+                    Console.WriteLine($"{resultsByType[ChangeType.Unchanged].Count()} items processed and unchanged");
+                    Console.WriteLine($"{resultsByType[ChangeType.New].Count()} new items: {string.Join(", ", resultsByType[ChangeType.New].Select(cr => cr.Item.HnItemId))}");
+                    Console.WriteLine($"{resultsByType[ChangeType.Changed].Count()} items changed: {string.Join(", ", resultsByType[ChangeType.Changed].Select(cr => cr.Item.HnItemId))}");
+
+                }
+            }
+            using (var db = new ItemContext()) {
                 var updated = db.Items.Where(i => i.PreviousItemId != null);
                 foreach (var updatedItem in updated) {
                     Console.WriteLine($"{updatedItem.Title}");
